@@ -10,9 +10,12 @@ OS X provides the BSD Readline library. In order to prevent conflicts when
 programs look for libreadline we are defaulting this GNU Readline installation
 to keg-only.
     EOS
+  end
 
   def patches
-    (1..4).collect {|n| "ftp://ftp.gnu.org/gnu/readline/readline-6.0-patches/readline60-%03d"%n}
+    if MACOS_VERSION == 10.5
+      (1..4).collect {|n| "ftp://ftp.gnu.org/gnu/readline/readline-6.0-patches/readline60-%03d"%n}
+    end
   end
 
   def install
