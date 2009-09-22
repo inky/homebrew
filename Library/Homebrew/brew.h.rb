@@ -139,8 +139,23 @@ end
 
 def clean f
   Cleaner.new f
-  # remove empty directories TODO Rubyize!
-  `perl -MFile::Find -e"finddepth(sub{rmdir},'#{f.prefix}')"`
+ 
+  # Hunt for empty folders and nuke them unless they are
+  # protected by f.skip_clean?
+  # We want post-order traversal, so put the dirs in a stack
+  # and then pop them off later.
+  paths = []
+  f.prefix.find do |path|
+    paths << path if path.directory?
+  end
+
+  until paths.empty? do
+    d = paths.pop
+    if d.children.empty? and not f.skip_clean? d
+      puts "rmdir: #{d} (empty)" if ARGV.verbose?
+      d.rmdir
+    end
+  end
 end
 
 
