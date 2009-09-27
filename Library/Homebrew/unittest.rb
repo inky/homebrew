@@ -21,6 +21,7 @@ HOMEBREW_PREFIX=Pathname.new '/private/tmp/testbrew/prefix'
 HOMEBREW_CACHE=HOMEBREW_PREFIX.parent+"cache"
 HOMEBREW_CELLAR=HOMEBREW_PREFIX.parent+"cellar"
 HOMEBREW_USER_AGENT="Homebrew"
+MACOS_VERSION=10.6
 
 (HOMEBREW_PREFIX+'Library'+'Formula').mkpath
 Dir.chdir HOMEBREW_PREFIX
@@ -56,7 +57,7 @@ end
 class TestZip <Formula
   def initialize
     zip=HOMEBREW_CACHE.parent+'test-0.1.zip'
-    Kernel.system 'zip', '-0', zip, ABS__FILE__
+    Kernel.system '/usr/bin/zip', '-0', zip, ABS__FILE__
     @url="file://#{zip}"
     super 'testzip'
   end
@@ -75,8 +76,8 @@ class TestBallOverrideBrew <Formula
 end
 
 class TestScriptFileFormula <ScriptFileFormula
-  @url="file:///#{Pathname.new(ABS__FILE__).realpath}"
-  @version="1"
+  url "file:///#{Pathname.new(ABS__FILE__).realpath}"
+  version "1"
   
   def initialize
     super
@@ -505,6 +506,11 @@ class BeerTasting <Test::Unit::TestCase
     end
     
     assert_raises(RuntimeError) {Pathname.getwd.install 'non_existant_file'}
+  end
+  
+  def test_omega_version_style
+    f=MockFormula.new 'http://www.alcyone.com/binaries/omega/omega-0.80.2-src.tar.gz'
+    assert_equal '0.80.2', f.version
   end
   
   def test_formula_class_func
