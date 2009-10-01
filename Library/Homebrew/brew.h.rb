@@ -21,21 +21,18 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-def make url
+FORMULA_META_FILES = %w[README ChangeLog COPYING LICENSE COPYRIGHT AUTHORS]
+
+def __make url, name
   require 'formula'
 
-  path=Pathname.new url
-
-  /(.*?)[-_.]?#{path.version}/.match path.basename
-  raise "Couldn't parse name from #{url}" if $1.nil? or $1.empty?
-
-  path=Formula.path $1
+  path = Formula.path name
   raise "#{path} already exists" if path.exist?
 
   template=<<-EOS
             require 'brewkit'
 
-            class #{Formula.class_s $1} <Formula
+            class #{Formula.class_s name} <Formula
               url '#{url}'
               homepage ''
               md5 ''
@@ -86,6 +83,38 @@ def make url
   f.close
 
   return path
+end
+
+def make url
+  path = Pathname.new url
+
+  /(.*?)[-_.]?#{path.version}/.match path.basename
+
+  unless $1.to_s.empty?
+    name = $1
+  else
+    print "Formula name [#{path.stem}]: "
+    gots = $stdin.gets.chomp
+    if gots.empty?
+      name = path.stem
+    else
+      name = gots
+    end
+  end
+
+  case name
+  when /libxml/, /libxlst/, /freetype/, /libpng/
+    raise <<-EOS
+#{name} is blacklisted for creation
+Apple distributes this library with OS X, you can find it in /usr/X11/lib.
+However not all build scripts look here, so you may need to call ENV.x11 or
+ENV.libxml2 in your formula's install function.
+    EOS
+  when 'mercurial'
+    raise "Mercurial is blacklisted for creation because it is provided by easy_install"
+  end
+
+  __make url, name
 end
 
 
@@ -231,6 +260,7 @@ end
 def warn_about_macports_or_fink
   # See these issues for some history:
   # http://github.com/mxcl/homebrew/issues/#issue/13
+  # http://github.com/mxcl/homebrew/issues/#issue/41
   # http://github.com/mxcl/homebrew/issues/#issue/48
   
   %w[port fink].each do |ponk|
@@ -265,6 +295,11 @@ def warn_about_macports_or_fink
 end
 
 
+def versions_of(keg_name)
+  `ls #{HOMEBREW_CELLAR}/#{keg_name}`.collect { |version| version.strip }.reverse
+end
+
+
 ########################################################## class PrettyListing
 class PrettyListing
   def initialize path
@@ -278,15 +313,17 @@ class PrettyListing
           (pnn.extname == '.dylib' or pnn.extname == '.pc') and not pnn.symlink?
         end
       else
-        print_dir pn
+        if pn.directory?
+          print_dir pn
+        elsif not FORMULA_META_FILES.include? pn.basename.to_s
+          puts pn
+        end
       end
     end
   end
 
 private
   def print_dir root
-    return unless root.directory?
-
     dirs = []
     remaining_root_files = []
     other = ''
@@ -318,7 +355,7 @@ private
     when 1
       puts *files
     else
-      puts "#{root} (#{files.length} #{other}files)"
+      puts "#{root}/ (#{files.length} #{other}files)"
     end
   end
 end
